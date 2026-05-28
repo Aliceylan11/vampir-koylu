@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    avoid_print: false # Geliştirme aşamasında print serbest
+    sort_constructors_first: false
+    require_trailing_commas: true
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    invalid_annotation_target: ignore

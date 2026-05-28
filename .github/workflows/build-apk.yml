@@ -42,10 +42,31 @@ jobs:
         run: flutter doctor -v
 
       # 5. Eksik platform dosyalarını tamamla (mevcut özelleştirmeleri KORU)
-      # --overwrite YOK: AndroidManifest.xml, build.gradle gibi özel dosyalarımız korunur
+      # Önce kritik özel dosyaları yedekle → flutter create çalıştır → geri yükle
+      # Bu yöntem hangi Flutter sürümünde olursa olsun güvenli çalışır
       - name: 🏗️ Eksik platform dosyalarını doldur
         run: |
-          flutter create --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu .
+          # Özel dosyaları yedekle
+          mkdir -p /tmp/backup/android/app/src/main
+          cp -r android/app/src/main/AndroidManifest.xml /tmp/backup/android/app/src/main/ 2>/dev/null || true
+          cp android/app/build.gradle.kts /tmp/backup/android/app/ 2>/dev/null || true
+          cp android/build.gradle.kts /tmp/backup/android/ 2>/dev/null || true
+          cp android/settings.gradle.kts /tmp/backup/android/ 2>/dev/null || true
+
+          # Flutter create — eksik wrapper jar, gradlew, drawable vs. eklensin
+          # Verbose çalıştır ki hata varsa görelim
+          flutter create -v --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu --overwrite . || true
+
+          # Özel dosyaları geri yükle (overwrite olmuş olabilir)
+          cp -r /tmp/backup/android/app/src/main/AndroidManifest.xml android/app/src/main/ 2>/dev/null || true
+          cp /tmp/backup/android/app/build.gradle.kts android/app/ 2>/dev/null || true
+          cp /tmp/backup/android/build.gradle.kts android/ 2>/dev/null || true
+          cp /tmp/backup/android/settings.gradle.kts android/ 2>/dev/null || true
+
+          echo "==== Android klasor durumu ===="
+          ls -la android/
+          ls -la android/app/ || true
+          ls -la android/gradle/wrapper/ || true
 
       # 6. Bağımlılıkları indir
       - name: 📦 Bağımlılıklar

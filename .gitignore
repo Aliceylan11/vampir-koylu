@@ -50,3 +50,7 @@ coverage/
 
 # Logs
 *.log
+
+# Debug/temp JSON
+run.json
+jobs.json

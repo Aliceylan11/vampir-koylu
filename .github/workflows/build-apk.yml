@@ -41,54 +41,46 @@ jobs:
       - name: 🩺 Flutter doctor
         run: flutter doctor -v
 
-      # 5. Eksik platform dosyalarını tamamla
-      # PubSPEC.YAML DAHIL tüm özel dosyaları yedekle → flutter create → geri yükle
-      # flutter_launcher_icons gibi top-level key'lerin kaybolmasını önler
+      # 5. Eksik platform dosyalarını tamamla — Flutter MODERN template kullanılır
+      # --overwrite YOK: lib/, pubspec.yaml ve özel android/ dosyalarımız ASLA ezilmez
+      # Root android/ dosyalarını (settings.gradle.kts vs.) git'ten sildik;
+      # Flutter create modern AGP 8.11+/Kotlin 2.2+ versiyonlarını koyar.
       - name: 🏗️ Eksik platform dosyalarını doldur
         run: |
-          mkdir -p /tmp/backup/android/app/src/main/kotlin/com/vampirkoylu/app
-          mkdir -p /tmp/backup/android/app/src/main/res/values
-          mkdir -p /tmp/backup/android/app/src/main/res/values-night
-          mkdir -p /tmp/backup/android/app/src/main/res/drawable
-
-          # Özel pubspec.yaml — flutter_launcher_icons config bunda
+          # Ekstra güvenlik — kritik özel dosyaları yedekle
+          mkdir -p /tmp/backup
           cp pubspec.yaml /tmp/backup/pubspec.yaml
-          # Android özelleştirmeleri
-          cp -r android/app/src/main/AndroidManifest.xml /tmp/backup/android/app/src/main/ 2>/dev/null || true
-          cp android/app/build.gradle.kts /tmp/backup/android/app/ 2>/dev/null || true
-          cp android/build.gradle.kts /tmp/backup/android/ 2>/dev/null || true
-          cp android/settings.gradle.kts /tmp/backup/android/ 2>/dev/null || true
-          cp android/gradle.properties /tmp/backup/android/ 2>/dev/null || true
-          cp android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt /tmp/backup/android/app/src/main/kotlin/com/vampirkoylu/app/ 2>/dev/null || true
-          cp android/app/src/main/res/values/styles.xml /tmp/backup/android/app/src/main/res/values/ 2>/dev/null || true
-          cp android/app/src/main/res/values-night/styles.xml /tmp/backup/android/app/src/main/res/values-night/ 2>/dev/null || true
-          cp android/app/src/main/res/drawable/launch_background.xml /tmp/backup/android/app/src/main/res/drawable/ 2>/dev/null || true
+          cp android/app/build.gradle.kts /tmp/backup/app_build.gradle.kts
+          cp android/app/src/main/AndroidManifest.xml /tmp/backup/AndroidManifest.xml
+          cp android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt /tmp/backup/MainActivity.kt
+          cp android/app/src/main/res/values/styles.xml /tmp/backup/styles.xml 2>/dev/null || true
+          cp android/app/src/main/res/values-night/styles.xml /tmp/backup/styles-night.xml 2>/dev/null || true
+          cp android/app/src/main/res/drawable/launch_background.xml /tmp/backup/launch_background.xml 2>/dev/null || true
 
-          # Flutter create — eksik wrapper jar, gradlew, default drawable vs. eklensin
-          flutter create --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu --overwrite . || true
+          # Flutter create — eksik dosyaları (root gradle config, wrapper jar vs.) ekler
+          # --overwrite YOK → mevcut özel dosyalarımız korunur
+          flutter create --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu .
 
-          # Özelleştirmeleri geri yükle
+          # Garanti olsun — özel dosyaları geri yükle
           cp /tmp/backup/pubspec.yaml pubspec.yaml
-          cp -r /tmp/backup/android/app/src/main/AndroidManifest.xml android/app/src/main/ 2>/dev/null || true
-          cp /tmp/backup/android/app/build.gradle.kts android/app/ 2>/dev/null || true
-          cp /tmp/backup/android/build.gradle.kts android/ 2>/dev/null || true
-          cp /tmp/backup/android/settings.gradle.kts android/ 2>/dev/null || true
-          cp /tmp/backup/android/gradle.properties android/ 2>/dev/null || true
-          cp /tmp/backup/android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt android/app/src/main/kotlin/com/vampirkoylu/app/ 2>/dev/null || true
-          cp /tmp/backup/android/app/src/main/res/values/styles.xml android/app/src/main/res/values/ 2>/dev/null || true
-          cp /tmp/backup/android/app/src/main/res/values-night/styles.xml android/app/src/main/res/values-night/ 2>/dev/null || true
-          cp /tmp/backup/android/app/src/main/res/drawable/launch_background.xml android/app/src/main/res/drawable/ 2>/dev/null || true
+          cp /tmp/backup/app_build.gradle.kts android/app/build.gradle.kts
+          cp /tmp/backup/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          cp /tmp/backup/MainActivity.kt android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt
+          cp /tmp/backup/styles.xml android/app/src/main/res/values/styles.xml 2>/dev/null || true
+          cp /tmp/backup/styles-night.xml android/app/src/main/res/values-night/styles.xml 2>/dev/null || true
+          cp /tmp/backup/launch_background.xml android/app/src/main/res/drawable/launch_background.xml 2>/dev/null || true
 
-          # Eski MainActivity flutter create tarafından eklenmiş olabilir (yanlış path'te)
-          rm -f android/app/src/main/kotlin/com/vampirkoylu/vampir_koylu/MainActivity.kt 2>/dev/null || true
-          rmdir android/app/src/main/kotlin/com/vampirkoylu/vampir_koylu 2>/dev/null || true
+          # Flutter create yanlış path'te MainActivity oluşturmuş olabilir (vampir_koylu vs app)
+          rm -rf android/app/src/main/kotlin/com/vampirkoylu/vampir_koylu 2>/dev/null || true
 
-          echo "==== pubspec.yaml ilk 80 satir ===="
-          head -80 pubspec.yaml
-          echo "==== flutter_launcher_icons konfig kontrolu ===="
-          grep -A 10 "flutter_launcher_icons:" pubspec.yaml || echo "BULUNAMADI!"
+          echo "==== ANDROID ROOT (Flutter create modern versiyonlari) ===="
+          ls android/
+          echo "==== settings.gradle.kts (AGP versiyonu) ===="
+          head -30 android/settings.gradle.kts 2>/dev/null || head -30 android/settings.gradle
+          echo "==== lib/main.dart ilk 15 satir (bizim kodun korundugunu dogrula) ===="
+          head -15 lib/main.dart
 
-      # 5b. flutter create varsayilan ikon dosyalarini silelim — bizimkilerle cakismasin
+      # 5b. Flutter create varsayilan launcher ikonlarini silelim — bizimkilerle cakismasin
       - name: 🧹 Varsayilan ikonlari temizle
         run: |
           rm -rf android/app/src/main/res/mipmap-hdpi || true

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
@@ -11,30 +10,46 @@ import '../widgets/app_background.dart';
 import '../widgets/countdown_timer.dart';
 import '../widgets/narrator_box.dart';
 import '../widgets/player_grid.dart';
+import 'night_screen.dart';
 import 'result_screen.dart';
 import 'vote_screen.dart';
 
-class DayScreen extends ConsumerWidget {
+class DayScreen extends ConsumerStatefulWidget {
   const DayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final GameState state = ref.watch(gameStateProvider);
-    final NightSummary? lastNight =
-        state.nightSummaries.isEmpty ? null : state.nightSummaries.last;
-    final int discussionSeconds = state.discussionSeconds;
+  ConsumerState<DayScreen> createState() => _DayScreenState();
+}
 
-    // Kazanma kontrolü
-    final WinResult? winResult = ref.read(gameStateProvider.notifier).checkWin();
-    if (winResult != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+class _DayScreenState extends ConsumerState<DayScreen> {
+  bool _winChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // KAZANMA KONTROLÜ TEK SEFER — build() içinde değil!
+    // (Build'de yapılırsa state mutate olur ve sonsuz rebuild döngüsü oluşur)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _winChecked) return;
+      _winChecked = true;
+      final WinResult? winResult =
+          ref.read(gameStateProvider.notifier).checkWin();
+      if (winResult != null && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
             builder: (_) => ResultScreen(result: winResult),
           ),
         );
-      });
-    }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final GameState state = ref.watch(gameStateProvider);
+    final NightSummary? lastNight =
+        state.nightSummaries.isEmpty ? null : state.nightSummaries.last;
+    final int discussionSeconds = state.discussionSeconds;
 
     return Scaffold(
       appBar: AppBar(
@@ -80,10 +95,7 @@ class DayScreen extends ConsumerWidget {
                                 ),
                               ),
                         const SizedBox(height: 12),
-                        Text(
-                          'HAYATTAKİLER',
-                          style: AppTextStyles.headlineSmall,
-                        ),
+                        Text('HAYATTAKİLER', style: AppTextStyles.headlineSmall),
                         const SizedBox(height: 8),
                         PlayerGrid(players: state.alivePlayers),
                         if (state.deadPlayers.isNotEmpty) ...<Widget>[
@@ -111,10 +123,8 @@ class DayScreen extends ConsumerWidget {
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.timer),
                         label: const Text('TARTIŞMA'),
-                        onPressed: () => _openDiscussion(
-                          context,
-                          discussionSeconds,
-                        ),
+                        onPressed: () =>
+                            _openDiscussion(context, discussionSeconds),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -122,33 +132,11 @@ class DayScreen extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.gavel),
                         label: Text(
-                          state.isCarnivalActive ? 'KARNAVAL - GECEYE' : 'OYLAMA',
+                          state.isCarnivalActive
+                              ? 'KARNAVAL — GECEYE'
+                              : 'OYLAMA',
                         ),
-                        onPressed: () {
-                          ref.read(gameStateProvider.notifier).moveToVoting();
-                          if (state.isCarnivalActive) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute<void>(
-                                builder: (_) => Builder(builder: (BuildContext c) {
-                                  // Karnaval → geceye atla
-                                  WidgetsBinding.instance
-                                      .addPostFrameCallback((_) {
-                                    ref
-                                        .read(gameStateProvider.notifier)
-                                        .moveToNight();
-                                  });
-                                  return const _LoadingNext();
-                                }),
-                              ),
-                            );
-                          } else {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const VoteScreen(),
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: () => _onActionPressed(state),
                       ),
                     ),
                   ],
@@ -161,52 +149,44 @@ class DayScreen extends ConsumerWidget {
     );
   }
 
+  void _onActionPressed(GameState state) {
+    if (state.isCarnivalActive) {
+      // Karnavalda linç yok → direkt geceye geç
+      ref.read(gameStateProvider.notifier).moveToNight();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const NightScreen()),
+      );
+      return;
+    }
+    ref.read(gameStateProvider.notifier).moveToVoting();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const VoteScreen()),
+    );
+  }
+
   void _openDiscussion(BuildContext context, int seconds) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.background,
       isScrollControlled: true,
-      builder: (BuildContext ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        height: 360,
-        child: Column(
-          children: <Widget>[
-            Text('TARTIŞMA SÜRESİ',
-                    style: AppTextStyles.headlineMedium)
-                .animate()
-                .fadeIn(),
-            const SizedBox(height: 20),
-            CountdownTimer(
-              seconds: seconds,
-              onFinish: () => Navigator.of(ctx).pop(),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Köy bir suçlu arıyor...\nKonuşun, tartışın, ikna edin.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingNext extends StatelessWidget {
-  const _LoadingNext();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: AppBackground(
-        child: Center(
+      builder: (BuildContext ctx) => SizedBox(
+        height: 380,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const CircularProgressIndicator(color: AppColors.gold),
+              Text('TARTIŞMA SÜRESİ', style: AppTextStyles.headlineMedium),
+              const SizedBox(height: 20),
+              CountdownTimer(
+                seconds: seconds,
+                onFinish: () => Navigator.of(ctx).pop(),
+              ),
               const SizedBox(height: 16),
-              Text('Gece yaklaşıyor...', style: AppTextStyles.bodyMedium),
+              Text(
+                'Köy bir suçlu arıyor...\nKonuşun, tartışın, ikna edin.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMedium,
+              ),
             ],
           ),
         ),

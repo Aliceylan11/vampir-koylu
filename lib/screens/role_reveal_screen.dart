@@ -88,11 +88,67 @@ class _RoleRevealScreenState extends ConsumerState<RoleRevealScreen> {
   }
 
   Widget _buildShowRole(Player p) {
+    final List<Player> allPlayers = ref.read(gameStateProvider).players;
+    // Vampir takımı müttefikleri (kendisi hariç)
+    final List<Player> vampireAllies = p.team.isVampire
+        ? allPlayers
+            .where((Player other) =>
+                other.id != p.id && other.team.isVampire)
+            .toList()
+        : <Player>[];
+
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
           const SizedBox(height: 20),
           RoleCard(role: p.role, playerName: p.name),
+
+          // VAMPİR MÜTTEFİKLERİ
+          if (vampireAllies.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.blood.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.blood, width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      const Icon(Icons.bedtime, color: AppColors.blood),
+                      const SizedBox(width: 8),
+                      Text(
+                        '🩸 Vampir Müttefiklerin:',
+                        style: AppTextStyles.headlineSmall
+                            .copyWith(color: AppColors.blood),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...vampireAllies.map(
+                    (Player ally) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '• ${ally.name}  (${ally.role.displayName})',
+                        style: AppTextStyles.bodyMedium
+                            .copyWith(color: AppColors.textPrimary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Gece geldiğinde birbirinizi tanıyacaksınız.',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // AŞIK
           if (p.lover != null) ...<Widget>[
             const SizedBox(height: 16),
             Container(

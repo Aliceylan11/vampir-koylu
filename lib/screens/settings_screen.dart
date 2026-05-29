@@ -73,7 +73,35 @@ class SettingsScreen extends ConsumerWidget {
                 label: '%${(s.eventProbability * 100).round()}',
                 onChanged: (double v) => notifier.setEventProbability(v),
               ),
-              const Divider(),
+              const SizedBox(height: 8),
+              ListTile(
+                title: const Text('Oylama tipi'),
+                subtitle: Text(
+                  s.votingType.description,
+                  style: AppTextStyles.caption,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SegmentedButton<VotingType>(
+                  segments: const <ButtonSegment<VotingType>>[
+                    ButtonSegment<VotingType>(
+                      value: VotingType.open,
+                      label: Text('Açık'),
+                      icon: Icon(Icons.visibility),
+                    ),
+                    ButtonSegment<VotingType>(
+                      value: VotingType.secret,
+                      label: Text('Gizli'),
+                      icon: Icon(Icons.visibility_off),
+                    ),
+                  ],
+                  selected: <VotingType>{s.votingType},
+                  onSelectionChanged: (Set<VotingType> v) =>
+                      notifier.setVotingType(v.first),
+                ),
+              ),
+              const Divider(height: 32),
               _SectionTitle('Hakkında'),
               Card(
                 child: Padding(

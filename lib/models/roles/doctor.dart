@@ -41,8 +41,7 @@ class DoctorRole extends Role {
   @override
   Color get accentColor => const Color(0xFF4A7C59);
 
-  @override
-  int get maxCount => 1;
+  // Doktor sayısı serbest (büyük gruplar için birden fazla doktor olabilir)
 
   @override
   NightActionResult performNightAction({

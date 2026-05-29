@@ -43,9 +43,7 @@ class WitchRole extends Role {
   @override
   Color get accentColor => const Color(0xFF6B5B95);
 
-  @override
-  int get maxCount => 1;
-
+  // maxCount default 99 — istenildiği kadar Cadı eklenebilir
   @override
   int get minPlayers => 7;
 

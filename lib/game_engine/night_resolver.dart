@@ -96,12 +96,22 @@ class NightResolver {
     if (deaths.isEmpty) {
       paragraphs.add('🌅 Şafak söktü. Gece sessiz geçti — kimse ölmedi.');
     } else if (deaths.length == 1) {
+      final Player d = deaths.first;
       paragraphs.add(
-        '🌅 Şafak söktü. Köy meydanında ${deaths.first.name} ölü bulundu.',
+        '🌅 Şafak söktü. Köy meydanında ${d.name} (${d.role.displayName}) '
+        'ölü bulundu.\n'
+        '💀 Sebep: ${d.deathCause?.displayName ?? "Bilinmiyor"}.',
       );
     } else {
-      final String names = deaths.map((Player p) => p.name).join(', ');
-      paragraphs.add('🌅 Şafak söktü. Bu gece ölenler: $names.');
+      // Çoklu ölüm — her birini tek tek liste şeklinde göster
+      final StringBuffer sb = StringBuffer('🌅 Şafak söktü. Bu gece ölenler:\n');
+      for (final Player d in deaths) {
+        sb.writeln(
+          '• ${d.name} (${d.role.displayName}) — '
+          '${d.deathCause?.displayName ?? "bilinmiyor"}',
+        );
+      }
+      paragraphs.add(sb.toString().trimRight());
     }
 
     return NightSummary(

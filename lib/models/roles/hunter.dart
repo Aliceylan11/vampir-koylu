@@ -42,6 +42,5 @@ class HunterRole extends Role {
   @override
   Color get accentColor => const Color(0xFF8B4513);
 
-  @override
-  int get maxCount => 1;
+  // Avcı sayısı serbest
 }

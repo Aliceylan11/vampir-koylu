@@ -43,8 +43,7 @@ class PriestRole extends Role {
   @override
   Color get accentColor => const Color(0xFFD4AF37);
 
-  @override
-  int get maxCount => 1;
+  // Rahip sayısı serbest
 
   @override
   int get minPlayers => 8;

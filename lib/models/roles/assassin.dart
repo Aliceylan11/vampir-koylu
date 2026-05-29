@@ -46,8 +46,7 @@ class AssassinRole extends Role {
   @override
   Color get accentColor => const Color(0xFF8B0000);
 
-  @override
-  int get maxCount => 1;
+  // Suikastçi sayısı serbest
 
   @override
   int get minPlayers => 10;

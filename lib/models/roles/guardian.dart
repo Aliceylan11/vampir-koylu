@@ -40,8 +40,7 @@ class GuardianRole extends Role {
   @override
   Color get accentColor => const Color(0xFF4A6C8B);
 
-  @override
-  int get maxCount => 1;
+  // Bekçi sayısı serbest
 
   @override
   int get minPlayers => 8;

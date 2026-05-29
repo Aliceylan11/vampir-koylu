@@ -39,8 +39,7 @@ class MediumRole extends Role {
   @override
   Color get accentColor => const Color(0xFF9370DB);
 
-  @override
-  int get maxCount => 1;
+  // Medyum sayısı serbest
 
   @override
   int get minPlayers => 9;

@@ -95,6 +95,20 @@ class PlayerGrid extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // Ölü oyuncularda ölüm sebebini göster (mezarlık için)
+                  if (p.isDead && p.deathCause != null) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      '💀 ${p.deathCause!.displayName}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.blood.withValues(alpha: 0.85),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ],
             ),

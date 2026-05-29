@@ -333,16 +333,43 @@ class _PlayerTurnState extends ConsumerState<_PlayerTurn> {
 
     // --------- GENEL YETKİLİ ROL (Görücü, Doktor, Bekçi, Medyum, Rahip, Suikastçi) ---------
     if (role.hasNightAction) {
+      // Doktor & Bekçi: kendini de koruyabilir + önceki gece korunan disable
+      final bool isProtector = role.id == 'doctor' || role.id == 'guardian';
+      final Player? lastProtected = widget.player.lastProtectedTarget;
+
+      final List<Player> roleCandidates;
+      final Set<String> disabledIds;
+      final String? disabledHint;
+
+      if (isProtector) {
+        // Self DAHIL tüm canlı oyuncular
+        roleCandidates = aliveAll;
+        disabledIds = lastProtected != null
+            ? <String>{lastProtected.id}
+            : <String>{};
+        disabledHint = lastProtected != null
+            ? '⚠️ ${lastProtected.name}\'i geçen gece korudun. '
+                'Bu gece başka birini seç.'
+            : null;
+      } else if (role.id == 'medium' || role.id == 'priest') {
+        // Medyum/Rahip ölülere bakar
+        roleCandidates =
+            widget.allPlayers.where((Player p) => p.isDead).toList();
+        disabledIds = const <String>{};
+        disabledHint = null;
+      } else {
+        roleCandidates = aliveOthers;
+        disabledIds = const <String>{};
+        disabledHint = null;
+      }
+
       return _GenericAction(
         actor: widget.player,
         role: role,
-        candidates: role.id == 'medium' || role.id == 'priest'
-            ? widget.allPlayers // medyum/rahip ölülere bakar
-                .where((Player p) =>
-                    role.id == 'medium' ? p.isDead : p.isDead)
-                .toList()
-            : aliveOthers,
+        candidates: roleCandidates,
         allPlayers: widget.allPlayers,
+        disabledIds: disabledIds,
+        disabledHint: disabledHint,
         onConfirm: (Player? target) {
           // Role.performNightAction çalıştır
           final NightActionResult res = role.performNightAction(
@@ -744,6 +771,8 @@ class _GenericAction extends StatefulWidget {
     required this.candidates,
     required this.allPlayers,
     required this.onConfirm,
+    this.disabledIds = const <String>{},
+    this.disabledHint,
   });
 
   final Player actor;
@@ -751,6 +780,8 @@ class _GenericAction extends StatefulWidget {
   final List<Player> candidates;
   final List<Player> allPlayers;
   final void Function(Player? target) onConfirm;
+  final Set<String> disabledIds;
+  final String? disabledHint;
 
   @override
   State<_GenericAction> createState() => _GenericActionState();
@@ -789,12 +820,35 @@ class _GenericActionState extends State<_GenericAction> {
         else
           Expanded(
             child: SingleChildScrollView(
-              child: PlayerGrid(
-                players: widget.candidates,
-                selectedPlayer: _selected,
-                onTap: (Player p) => setState(() {
-                  _selected = _selected?.id == p.id ? null : p;
-                }),
+              child: Column(
+                children: <Widget>[
+                  if (widget.disabledHint != null) ...<Widget>[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: AppColors.gold.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        widget.disabledHint!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.caption,
+                      ),
+                    ),
+                  ],
+                  PlayerGrid(
+                    players: widget.candidates,
+                    selectedPlayer: _selected,
+                    disabledIds: widget.disabledIds,
+                    onTap: (Player p) => setState(() {
+                      _selected = _selected?.id == p.id ? null : p;
+                    }),
+                  ),
+                ],
               ),
             ),
           ),

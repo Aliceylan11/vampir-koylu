@@ -44,8 +44,7 @@ class SeerRole extends Role {
   @override
   Color get accentColor => const Color(0xFF8B4789);
 
-  @override
-  int get maxCount => 1;
+  // Görücü sayısı serbest
 
   @override
   NightActionResult performNightAction({

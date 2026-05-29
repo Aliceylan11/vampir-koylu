@@ -25,9 +25,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   void _rebuildControllers() {
     while (_controllers.length < _playerCount) {
-      // BOŞ controller — kullanıcı yazınca hiçbir şeyle çakışmaz.
-      // Görsel ipucu "Oyuncu N" sadece hintText (placeholder) olarak gösterilir.
-      _controllers.add(TextEditingController());
+      final TextEditingController c = TextEditingController();
+      // Her değişiklikte rebuild → yazılanı anlık üst başlıkta göstermek için
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+      _controllers.add(c);
     }
     while (_controllers.length > _playerCount) {
       _controllers.removeLast().dispose();
@@ -42,20 +45,22 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     super.dispose();
   }
 
+  int get _filledCount =>
+      _controllers.where((TextEditingController c) => c.text.trim().isNotEmpty).length;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Oyuncu Hazırlığı'),
-      ),
+      appBar: AppBar(title: const Text('Oyuncu Hazırlığı')),
       body: AppBackground(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: <Widget>[
+                // ÜST: oyuncu sayısı + slider + canlı sayaç
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppColors.surface.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(12),
@@ -65,9 +70,33 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   ),
                   child: Column(
                     children: <Widget>[
-                      Text(
-                        'Oyuncu Sayısı: $_playerCount',
-                        style: AppTextStyles.headlineMedium,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Text(
+                            'Oyuncu Sayısı: $_playerCount',
+                            style: AppTextStyles.headlineMedium,
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _filledCount == _playerCount
+                                  ? AppColors.success.withValues(alpha: 0.2)
+                                  : AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$_filledCount yazıldı',
+                              style: AppTextStyles.caption.copyWith(
+                                color: _filledCount == _playerCount
+                                    ? AppColors.success
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       Slider(
                         value: _playerCount.toDouble(),
@@ -89,57 +118,28 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+
+                // İSİM LİSTESİ
                 Expanded(
                   child: ListView.builder(
                     itemCount: _playerCount,
-                    itemBuilder: (BuildContext ctx, int i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        controller: _controllers[i],
-                        textCapitalization: TextCapitalization.words,
-                        // Yazılan metin AÇIKÇA görünsün (krem-beyaz, kalın)
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18,
-                        ),
-                        cursorColor: AppColors.gold,
-                        decoration: InputDecoration(
-                          prefixIcon: Container(
-                            margin: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.blood.withValues(alpha: 0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${i + 1}',
-                                style: AppTextStyles.bodyMedium.copyWith(
-                                  color: AppColors.gold,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Hint: kullanıcı yazınca otomatik kaybolur
-                          hintText: 'Oyuncu ${i + 1}',
-                          hintStyle: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textMuted,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
+                    itemBuilder: (BuildContext ctx, int i) =>
+                        _PlayerRow(
+                      key: ValueKey<int>(i),
+                      number: i + 1,
+                      controller: _controllers[i],
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.arrow_forward),
                     label: const Text('ROL SEÇİMİNE GEÇ'),
                     onPressed: () {
-                      // Boş kalanlar için "Oyuncu N" fallback
                       final List<String> names = <String>[];
                       for (int i = 0; i < _controllers.length; i++) {
                         final String typed = _controllers[i].text.trim();
@@ -147,9 +147,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       }
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => RoleSelectionScreen(
-                            playerNames: names,
-                          ),
+                          builder: (_) =>
+                              RoleSelectionScreen(playerNames: names),
                         ),
                       );
                     },
@@ -159,6 +158,112 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Tek bir oyuncu satırı: Numara (sol) + TextField (sağ, expanded).
+/// TextField'in stili EXPLICIT (tema bağımlılığı yok) — her cihazda
+/// yazılan metin net görünür.
+class _PlayerRow extends StatelessWidget {
+  const _PlayerRow({
+    super.key,
+    required this.number,
+    required this.controller,
+  });
+
+  final int number;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final String typed = controller.text.trim();
+    final bool isEmpty = typed.isEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // ===== NUMARA (sol, sabit kutu) =====
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isEmpty
+                  ? AppColors.blood.withValues(alpha: 0.25)
+                  : AppColors.gold.withValues(alpha: 0.25),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isEmpty ? AppColors.blood : AppColors.gold,
+                width: 1.5,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                '$number',
+                style: TextStyle(
+                  color: isEmpty ? AppColors.gold : AppColors.gold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // ===== TEXTFIELD (sağ, expanded) =====
+          // EXPLICIT renkler — tema'dan bağımsız, her cihazda görünür
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textCapitalization: TextCapitalization.words,
+              // YAZILAN METİN — net krem-beyaz, kalın, büyük
+              style: const TextStyle(
+                color: Color(0xFFFFFFFF), // saf beyaz
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+              cursorColor: AppColors.gold,
+              cursorWidth: 2.2,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.surface,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                hintText: 'Oyuncu $number',
+                hintStyle: TextStyle(
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.35),
+                  fontStyle: FontStyle.italic,
+                  fontSize: 16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: AppColors.gold.withValues(alpha: 0.4),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: AppColors.gold.withValues(alpha: 0.4),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: AppColors.gold,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

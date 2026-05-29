@@ -1,9 +1,9 @@
-name: 🦇 Build APK
+name: Build APK
 
-# Bu workflow'u tetiklemenin yolları:
-# 1. main/master branşına push at — otomatik build
-# 2. GitHub'da Actions sekmesinden manuel çalıştır (workflow_dispatch)
-# 3. Tag oluştur (v1.0.0 gibi) — release olarak APK eklenir
+# Tetikleyiciler:
+# - main/master push -> otomatik build
+# - Manuel (workflow_dispatch)
+# - Tag (v*) -> Release olarak APK eklenir
 
 on:
   push:
@@ -19,104 +19,88 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Kodu çek
-      - name: 📥 Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Java 17 kur (Flutter için gerekli)
-      - name: ☕ Java 17 kurulumu
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Flutter SDK kur (en son stable - withValues API'si için 3.27+ gerek)
-      - name: 🦋 Flutter SDK kurulumu
+      # Flutter 3.27.x stable (pinned) - withValues() ve WidgetState API'leri icin
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          flutter-version: '3.27.1'
           cache: true
 
-      # 4. Flutter durumunu kontrol et
-      - name: 🩺 Flutter doctor
+      - name: Flutter doctor
         run: flutter doctor -v
 
-      # 5. Eksik platform dosyalarını tamamla — Flutter MODERN template kullanılır
-      # --overwrite YOK: lib/, pubspec.yaml ve özel android/ dosyalarımız ASLA ezilmez
-      # Root android/ dosyalarını (settings.gradle.kts vs.) git'ten sildik;
-      # Flutter create modern AGP 8.11+/Kotlin 2.2+ versiyonlarını koyar.
-      - name: 🏗️ Eksik platform dosyalarını doldur
+      # Eksik wrapper dosyalarini (gradle-wrapper.jar, gradlew) doldur.
+      # --overwrite yok -> committed dosyalarimiz korunur.
+      # Sadece eksik olanlar yaratilir.
+      - name: Fill missing platform files (wrapper jar etc.)
         run: |
-          # Ekstra güvenlik — kritik özel dosyaları yedekle
-          mkdir -p /tmp/backup
-          cp pubspec.yaml /tmp/backup/pubspec.yaml
-          cp android/app/build.gradle.kts /tmp/backup/app_build.gradle.kts
-          cp android/app/src/main/AndroidManifest.xml /tmp/backup/AndroidManifest.xml
-          cp android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt /tmp/backup/MainActivity.kt
-          cp android/app/src/main/res/values/styles.xml /tmp/backup/styles.xml 2>/dev/null || true
-          cp android/app/src/main/res/values-night/styles.xml /tmp/backup/styles-night.xml 2>/dev/null || true
-          cp android/app/src/main/res/drawable/launch_background.xml /tmp/backup/launch_background.xml 2>/dev/null || true
-
-          # Flutter create — eksik dosyaları (root gradle config, wrapper jar vs.) ekler
-          # --overwrite YOK → mevcut özel dosyalarımız korunur
           flutter create --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu .
 
-          # Garanti olsun — özel dosyaları geri yükle
-          cp /tmp/backup/pubspec.yaml pubspec.yaml
-          cp /tmp/backup/app_build.gradle.kts android/app/build.gradle.kts
-          cp /tmp/backup/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          cp /tmp/backup/MainActivity.kt android/app/src/main/kotlin/com/vampirkoylu/app/MainActivity.kt
-          cp /tmp/backup/styles.xml android/app/src/main/res/values/styles.xml 2>/dev/null || true
-          cp /tmp/backup/styles-night.xml android/app/src/main/res/values-night/styles.xml 2>/dev/null || true
-          cp /tmp/backup/launch_background.xml android/app/src/main/res/drawable/launch_background.xml 2>/dev/null || true
-
-          # Flutter create yanlış path'te MainActivity oluşturmuş olabilir (vampir_koylu vs app)
+          # flutter create yan etkilerini temizle:
+          # 1) Yanlis package path'te (vampir_koylu vs app) MainActivity yaratmis olabilir
           rm -rf android/app/src/main/kotlin/com/vampirkoylu/vampir_koylu 2>/dev/null || true
+          # 2) Default mipmap ikonlari -> flutter_launcher_icons bizimkileri uretecek
+          rm -rf android/app/src/main/res/mipmap-hdpi
+          rm -rf android/app/src/main/res/mipmap-mdpi
+          rm -rf android/app/src/main/res/mipmap-xhdpi
+          rm -rf android/app/src/main/res/mipmap-xxhdpi
+          rm -rf android/app/src/main/res/mipmap-xxxhdpi
 
-          echo "==== ANDROID ROOT (Flutter create modern versiyonlari) ===="
-          ls android/
+          echo "==== android/ icerigi ===="
+          ls -la android/
+          echo "==== gradle-wrapper.jar var mi? ===="
+          ls -la android/gradle/wrapper/ || true
           echo "==== settings.gradle.kts (AGP versiyonu) ===="
-          head -30 android/settings.gradle.kts 2>/dev/null || head -30 android/settings.gradle
-          echo "==== lib/main.dart ilk 15 satir (bizim kodun korundugunu dogrula) ===="
-          head -15 lib/main.dart
+          head -25 android/settings.gradle.kts
+          echo "==== app/build.gradle.kts (namespace) ===="
+          head -15 android/app/build.gradle.kts
 
-      # 5b. Flutter create varsayilan launcher ikonlarini silelim — bizimkilerle cakismasin
-      - name: 🧹 Varsayilan ikonlari temizle
-        run: |
-          rm -rf android/app/src/main/res/mipmap-hdpi || true
-          rm -rf android/app/src/main/res/mipmap-mdpi || true
-          rm -rf android/app/src/main/res/mipmap-xhdpi || true
-          rm -rf android/app/src/main/res/mipmap-xxhdpi || true
-          rm -rf android/app/src/main/res/mipmap-xxxhdpi || true
-
-      # 6. Bağımlılıkları indir
-      - name: 📦 Bağımlılıklar
+      - name: Get dependencies
         run: flutter pub get
 
-      # 7. App ikonlarını tüm Android boyutlarına üret
-      # continue-on-error: ikon hatası APK build'i durdurmasın (default ikonla devam)
-      - name: 🎨 Launcher ikonlarını üret
+      # APP IKONLARI — assets/icon/icon.png + icon_fg.png'den uretir
+      # continue-on-error: ikon hatasi build'i durdurmasin (default ikonla devam)
+      - name: Generate launcher icons
         continue-on-error: true
         run: |
-          echo "==== assets/icon icerigi ===="
-          ls -la assets/icon/ || echo "assets/icon klasoru yok!"
-          echo "==== flutter_launcher_icons calistir ===="
+          ls -la assets/icon/ || echo "assets/icon yok!"
           dart run flutter_launcher_icons
 
-      # 8. Analiz (kod kalite kontrolü) — hatalar build'i durdurmasın
-      - name: 🔍 Analiz
+      # Eger flutter_launcher_icons basarisiz olduysa AAPT2 patlar.
+      # assets/icon/icon.png'i fallback olarak tum mipmap klasorlerine kopyala.
+      - name: Ensure launcher icons exist (fallback)
+        run: |
+          SRC="assets/icon/icon.png"
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p android/app/src/main/res/$d
+            if [ ! -f android/app/src/main/res/$d/ic_launcher.png ]; then
+              cp "$SRC" android/app/src/main/res/$d/ic_launcher.png
+            fi
+          done
+          echo "==== Mipmap icerigi ===="
+          ls -la android/app/src/main/res/mipmap-*/ic_launcher.png
+
+      - name: Analyze (non-blocking)
         run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
 
-      # 9. APK build (release, split-per-abi ile küçük APK'lar)
-      # Verbose çıktı + tee ile log dosyasına da yaz
-      - name: 🔨 APK build (release)
+      - name: Build APK (release, split-per-abi)
         id: apk_build
         run: |
           set -o pipefail
           flutter build apk --release --split-per-abi --verbose 2>&1 | tee build.log
 
-      # 9b. Build başarısız olsa bile log'u artifact olarak yükle
-      - name: 📋 Build log artifact (hata ayıklama)
+      # Build hatasi olsa bile log'u her zaman yukle
+      - name: Upload build log (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -125,33 +109,34 @@ jobs:
             build.log
             pubspec.yaml
             android/settings.gradle.kts
+            android/build.gradle.kts
             android/app/build.gradle.kts
+            android/gradle.properties
             android/gradle/wrapper/gradle-wrapper.properties
           retention-days: 7
 
-      # 9. APK'ları artifact olarak yükle (her zaman erişilebilir)
-      - name: 📤 APK'ları yükle
+      - name: Upload APKs
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: vampir-koylu-apks
           path: build/app/outputs/flutter-apk/*.apk
           retention-days: 30
 
-      # 10. Tag varsa Release oluştur ve APK'ları ekle
-      - name: 🎁 Release oluştur (tag varsa)
+      - name: Create Release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/*.apk
           generate_release_notes: true
           body: |
-            ## 🦇 Vampir Köylü ${{ github.ref_name }}
+            ## Vampir Koylu ${{ github.ref_name }}
 
-            APK dosyalarını aşağıdan indirebilirsin:
-            - `app-arm64-v8a-release.apk` → Modern telefonlar (önerilen)
-            - `app-armeabi-v7a-release.apk` → Eski telefonlar
-            - `app-x86_64-release.apk` → Emülatör
+            APK dosyalari:
+            - `app-arm64-v8a-release.apk` -> Modern telefonlar (onerilen)
+            - `app-armeabi-v7a-release.apk` -> Eski telefonlar
+            - `app-x86_64-release.apk` -> Emulator
 
-            Telefona yükleme: APK'yi indir, "Bilinmeyen kaynaklardan yükleme" izni ver, dosyayı aç.
+            Yukleme: APK'yi indir, "Bilinmeyen kaynaklardan yukleme"yi ac, dosyayi calistir.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

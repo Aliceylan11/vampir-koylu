@@ -54,3 +54,5 @@ coverage/
 # Debug/temp JSON
 run.json
 jobs.json
+artifacts.json
+build-log.zip

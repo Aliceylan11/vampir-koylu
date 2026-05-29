@@ -29,7 +29,7 @@ android {
 
     buildTypes {
         release {
-            // Şimdilik debug imzalama — kullanıcı isterse keystore eklenir
+            // Simdilik debug imzalama — kullanici isterse keystore eklenir
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false

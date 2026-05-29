@@ -25,9 +25,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   void _rebuildControllers() {
     while (_controllers.length < _playerCount) {
-      _controllers.add(
-        TextEditingController(text: 'Oyuncu ${_controllers.length + 1}'),
-      );
+      // BOŞ controller — kullanıcı yazınca hiçbir şeyle çakışmaz.
+      // Görsel ipucu "Oyuncu N" sadece hintText (placeholder) olarak gösterilir.
+      _controllers.add(TextEditingController());
     }
     while (_controllers.length > _playerCount) {
       _controllers.removeLast().dispose();
@@ -98,6 +98,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       child: TextField(
                         controller: _controllers[i],
                         textCapitalization: TextCapitalization.words,
+                        // Yazılan metin AÇIKÇA görünsün (krem-beyaz, kalın)
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                        ),
+                        cursorColor: AppColors.gold,
                         decoration: InputDecoration(
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(8),
@@ -115,7 +122,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                               ),
                             ),
                           ),
-                          hintText: 'Oyuncu ismi',
+                          // Hint: kullanıcı yazınca otomatik kaybolur
+                          hintText: 'Oyuncu ${i + 1}',
+                          hintStyle: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textMuted,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                     ),
@@ -127,10 +139,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     icon: const Icon(Icons.arrow_forward),
                     label: const Text('ROL SEÇİMİNE GEÇ'),
                     onPressed: () {
-                      final List<String> names = _controllers
-                          .map((TextEditingController c) =>
-                              c.text.trim().isEmpty ? 'Oyuncu' : c.text.trim())
-                          .toList();
+                      // Boş kalanlar için "Oyuncu N" fallback
+                      final List<String> names = <String>[];
+                      for (int i = 0; i < _controllers.length; i++) {
+                        final String typed = _controllers[i].text.trim();
+                        names.add(typed.isEmpty ? 'Oyuncu ${i + 1}' : typed);
+                      }
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => RoleSelectionScreen(

@@ -72,8 +72,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       Slider(
                         value: _playerCount.toDouble(),
                         min: 5,
-                        max: 20,
-                        divisions: 15,
+                        max: 50,
+                        divisions: 45,
                         label: '$_playerCount',
                         onChanged: (double v) {
                           setState(() {
@@ -83,7 +83,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                         },
                       ),
                       Text(
-                        'En az 5, en çok 20 oyuncu',
+                        'En az 5, en çok 50 oyuncu',
                         style: AppTextStyles.caption,
                       ),
                     ],

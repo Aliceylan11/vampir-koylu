@@ -546,7 +546,8 @@ class _VampireActionState extends State<_VampireAction> {
 }
 
 // =========================================================================
-// CADI EYLEMİ — hayat iksiri + ölüm iksiri
+// CADI EYLEMİ — hayat iksiri (sadece kendini korur) + ölüm iksiri
+// NOT: Cadı vampir hedefini GÖRMEZ (meta bilgi sızdırmaz).
 // =========================================================================
 class _WitchAction extends StatefulWidget {
   const _WitchAction({
@@ -558,7 +559,7 @@ class _WitchAction extends StatefulWidget {
 
   final Player actor;
   final List<Player> allPlayers;
-  final Player? vampireTarget;
+  final Player? vampireTarget; // resolver'a iletilir ama UI'da gösterilmez
   final void Function(Player? heal, Player? kill) onConfirm;
 
   @override
@@ -566,7 +567,7 @@ class _WitchAction extends StatefulWidget {
 }
 
 class _WitchActionState extends State<_WitchAction> {
-  Player? _healChoice;
+  bool _useLifePotion = false;
   Player? _killChoice;
   bool _showKillStep = false;
 
@@ -600,38 +601,27 @@ class _WitchActionState extends State<_WitchAction> {
                 style: AppTextStyles.bodyMedium,
               ),
             )
-          else if (widget.vampireTarget == null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-              ),
-              child: Text(
-                'Bu gece henüz vampir saldırısı belli değil veya yok.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMedium,
-              ),
-            )
           else
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.blood.withValues(alpha: 0.15),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.blood),
+                border: Border.all(color: AppColors.gold),
               ),
               child: Column(
                 children: <Widget>[
                   Text(
-                    'Vampirler bu gece ${widget.vampireTarget!.name}\'e saldırdı.',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyLarge,
+                    '🧪 Hayat İksiri',
+                    style: AppTextStyles.headlineSmall.copyWith(
+                      color: AppColors.gold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Hayat iksirini kullanıp diriltmek ister misin?',
+                    'Bu gece iksiri içip KENDİNİ korumak ister misin?\n\n'
+                    'Eğer vampirler bu gece sana saldırırsa, iksir seni '
+                    'kurtarır. Saldırmazlarsa iksir boşa gider.',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodyMedium,
                   ),
@@ -640,19 +630,28 @@ class _WitchActionState extends State<_WitchAction> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       ChoiceChip(
-                        label: const Text('Pas'),
-                        selected: _healChoice == null,
-                        onSelected: (_) => setState(() => _healChoice = null),
+                        label: const Text('Saklarım'),
+                        selected: !_useLifePotion,
+                        onSelected: (_) =>
+                            setState(() => _useLifePotion = false),
                       ),
                       const SizedBox(width: 12),
                       ChoiceChip(
-                        label: const Text('Dirilt'),
-                        selected: _healChoice != null,
-                        onSelected: (_) => setState(
-                            () => _healChoice = widget.vampireTarget),
+                        label: const Text('Kullanırım'),
+                        selected: _useLifePotion,
+                        onSelected: (_) =>
+                            setState(() => _useLifePotion = true),
                       ),
                     ],
                   ),
+                  if (_useLifePotion) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Text(
+                      '⚠️ Bu gece sana saldıran biri olursa hayatta kalırsın.',
+                      style: AppTextStyles.caption,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -713,7 +712,8 @@ class _WitchActionState extends State<_WitchAction> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
-                onPressed: () => widget.onConfirm(_healChoice, null),
+                onPressed: () => widget.onConfirm(
+                    _useLifePotion ? widget.actor : null, null),
                 child: const Text('İKSİR KULLANMA'),
               ),
             ),
@@ -722,7 +722,8 @@ class _WitchActionState extends State<_WitchAction> {
               child: ElevatedButton(
                 onPressed: _killChoice == null || deathUsed
                     ? null
-                    : () => widget.onConfirm(_healChoice, _killChoice),
+                    : () => widget.onConfirm(
+                        _useLifePotion ? widget.actor : null, _killChoice),
                 child: const Text('ÖLDÜR'),
               ),
             ),

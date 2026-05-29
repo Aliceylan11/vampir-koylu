@@ -46,10 +46,28 @@ jobs:
         run: |
           flutter create --platforms=android --project-name=vampir_koylu --org=com.vampirkoylu .
 
-          # flutter create yan etkilerini temizle:
-          # 1) Yanlis package path'te (vampir_koylu vs app) MainActivity yaratmis olabilir
+          # ========== flutter create YAN ETKILERINI TEMIZLE ==========
+          # Flutter 3.27 default'u groovy DSL (.gradle), bizim ise Kotlin DSL (.kts).
+          # Eger .kts varken Flutter create yeniden .gradle yaratirsa Gradle hata verir.
+          # Cozum: .kts varsa karsi gelen .gradle dosyasini sil.
+
+          if [ -f android/settings.gradle.kts ] && [ -f android/settings.gradle ]; then
+            echo ">>> Cakisma: settings.gradle siliniyor (settings.gradle.kts kullanilacak)"
+            rm android/settings.gradle
+          fi
+          if [ -f android/build.gradle.kts ] && [ -f android/build.gradle ]; then
+            echo ">>> Cakisma: build.gradle siliniyor (build.gradle.kts kullanilacak)"
+            rm android/build.gradle
+          fi
+          if [ -f android/app/build.gradle.kts ] && [ -f android/app/build.gradle ]; then
+            echo ">>> Cakisma: app/build.gradle siliniyor (app/build.gradle.kts kullanilacak)"
+            rm android/app/build.gradle
+          fi
+
+          # Yanlis package path'te (vampir_koylu vs app) MainActivity yaratmis olabilir
           rm -rf android/app/src/main/kotlin/com/vampirkoylu/vampir_koylu 2>/dev/null || true
-          # 2) Default mipmap ikonlari -> flutter_launcher_icons bizimkileri uretecek
+
+          # Default mipmap ikonlari -> flutter_launcher_icons bizimkileri uretecek
           rm -rf android/app/src/main/res/mipmap-hdpi
           rm -rf android/app/src/main/res/mipmap-mdpi
           rm -rf android/app/src/main/res/mipmap-xhdpi
@@ -58,6 +76,7 @@ jobs:
 
           echo "==== android/ icerigi ===="
           ls -la android/
+          ls -la android/app/ | grep -i gradle
           echo "==== gradle-wrapper.jar var mi? ===="
           ls -la android/gradle/wrapper/ || true
           echo "==== settings.gradle.kts (AGP versiyonu) ===="
